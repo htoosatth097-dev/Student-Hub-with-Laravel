@@ -113,16 +113,49 @@
 
                 {{-- Google reCAPTCHA v2 Checkbox --}}
                 <div class="field-group mb-4">
-                    <div class="recaptcha-box">
-                        @if(config('services.recaptcha.site_key'))
-                            <div class="recaptcha-responsive">
-                                <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}" data-callback="onRecaptchaSuccess"></div>
+                    <div class="captcha-card @error('g-recaptcha-response') has-error @enderror" id="captchaCard">
+                        <div class="captcha-card-head">
+                            <span class="captcha-card-icon" aria-hidden="true">
+                                <i class="bi bi-shield-check"></i>
+                            </span>
+                            <div class="captcha-card-text">
+                                <span class="captcha-card-title">Security Check</span>
+                                <span class="captcha-card-sub">Confirm you're not a robot</span>
                             </div>
+                            @if(config('services.recaptcha.site_key'))
+                                <span class="captcha-status" id="captchaStatus" aria-live="polite">
+                                    <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+                                    <span>Pending</span>
+                                </span>
+                            @endif
+                        </div>
+
+                        @if(config('services.recaptcha.site_key'))
+                            <div class="recaptcha-box">
+                                <div class="recaptcha-responsive">
+                                    <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}" data-callback="onRecaptchaSuccess" data-expired-callback="onRecaptchaExpired" data-error-callback="onRecaptchaExpired" id="loginRecaptcha"></div>
+                                </div>
+                            </div>
+                            <script>
+                                (function () {
+                                    var el = document.getElementById('loginRecaptcha');
+                                    if (el && document.body.classList.contains('theme-dark')) {
+                                        el.setAttribute('data-theme', 'dark');
+                                    }
+                                })();
+                            </script>
                         @else
                             <div class="recaptcha-error" role="alert">
-                                reCAPTCHA is not configured. Set RECAPTCHA_SITE_KEY and RECAPTCHA_SECRET_KEY in your environment.
+                                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                                <span>reCAPTCHA is not configured. Set RECAPTCHA_SITE_KEY and RECAPTCHA_SECRET_KEY in your environment.</span>
                             </div>
                         @endif
+
+                        <div class="recaptcha-error" id="captchaClientError" role="alert" hidden>
+                            <i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i>
+                            <span>Please complete the security check before signing in.</span>
+                        </div>
+
                         @error('g-recaptcha-response')
                             <div class="recaptcha-error">
                                 <i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i>
@@ -178,12 +211,51 @@
     <script src="https://www.recaptcha.net/recaptcha/api.js" async defer></script>
 @endif
 <script>
+    function setCaptchaState(verified) {
+        const card = document.getElementById('captchaCard');
+        const status = document.getElementById('captchaStatus');
+        if (card) {
+            card.classList.toggle('is-verified', verified);
+            if (verified) card.classList.remove('has-error');
+        }
+        if (status) {
+            status.innerHTML = verified
+                ? '<i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Verified</span>'
+                : '<i class="bi bi-hourglass-split" aria-hidden="true"></i><span>Pending</span>';
+        }
+    }
+
     function onRecaptchaSuccess() {
-        const errorBoxes = document.querySelectorAll('.recaptcha-error');
-        errorBoxes.forEach(box => box.style.display = 'none');
+        document.querySelectorAll('#captchaCard .recaptcha-error').forEach(box => box.hidden = true);
+        setCaptchaState(true);
+    }
+
+    function onRecaptchaExpired() {
+        setCaptchaState(false);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        const loginForm = document.getElementById('loginForm');
+        const captchaCard = document.getElementById('captchaCard');
+        const captchaClientError = document.getElementById('captchaClientError');
+
+        if (loginForm && document.getElementById('loginRecaptcha')) {
+            loginForm.addEventListener('submit', function (e) {
+                const token = window.grecaptcha && typeof grecaptcha.getResponse === 'function'
+                    ? grecaptcha.getResponse()
+                    : '';
+                if (!token) {
+                    e.preventDefault();
+                    if (captchaClientError) captchaClientError.hidden = false;
+                    if (captchaCard) {
+                        captchaCard.classList.add('has-error', 'shake');
+                        setTimeout(() => captchaCard.classList.remove('shake'), 450);
+                        captchaCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            });
+        }
+
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const toggleBtn = document.getElementById('togglePasswordBtn');

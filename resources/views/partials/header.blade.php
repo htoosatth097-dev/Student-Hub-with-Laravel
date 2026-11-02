@@ -33,15 +33,10 @@
                 $showSubRole = strcasecmp(trim($uName), trim($roleLabel)) !== 0;
             @endphp
 
-            <div class="topbar-action-icons d-none d-lg-flex align-items-center gap-1">
+            <div class="topbar-action-icons d-none d-lg-flex align-items-center">
                 <button type="button" class="topbar-icon-btn" id="themeToggleBtn" title="Toggle Dark / Light Theme" aria-label="Toggle theme">
                     <i class="bi bi-moon-stars" id="themeToggleIcon"></i>
                 </button>
-                @unless($currentUser->isStudentAdmin())
-                    <a href="{{ route('contact.index') }}" class="topbar-icon-btn text-decoration-none" title="Help Center" aria-label="Help Center">
-                        <i class="bi bi-question-circle"></i>
-                    </a>
-                @endunless
             </div>
 
             <div class="topbar-user-dropdown dropdown">
